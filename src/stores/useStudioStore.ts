@@ -2,7 +2,7 @@
 // Project Store - State Management
 // ==========================================
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Project,
@@ -17,6 +17,7 @@ import {
 import { MusicGenerationProvider } from '../ai/MusicGenerationProvider';
 import { MockMusicProvider } from '../ai/MockMusicProvider';
 import { getAudioEngine, AudioEngineState } from '../audio/AudioEngine';
+import { LyricsAnalyzer } from '../services/LyricsAnalyzer';
 
 // Default parameters
 const DEFAULT_PARAMS: MusicParameters = {
@@ -54,6 +55,18 @@ export interface StudioState {
   // UI
   selectedSectionId: string | null;
   activeTab: 'create' | 'edit' | 'mix' | 'export';
+
+  // Lyrics Analysis
+  lyricsAnalysis: {
+    mood: string;
+    genre: string;
+    bpm: number;
+    key: string;
+    scale: string;
+    intensity: number;
+    themes: string[];
+  } | null;
+  autoSuggestEnabled: boolean;
 }
 
 export function useStudioStore() {
@@ -70,10 +83,13 @@ export function useStudioStore() {
     audioState: getAudioEngine().getState(),
     selectedSectionId: null,
     activeTab: 'create',
+    lyricsAnalysis: null,
+    autoSuggestEnabled: true,
   });
 
   const providerRef = useRef<MusicGenerationProvider>(new MockMusicProvider());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lyricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to audio engine
   useEffect(() => {
@@ -84,10 +100,11 @@ export function useStudioStore() {
     return unsub;
   }, []);
 
-  // Cleanup polling
+  // Cleanup
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (lyricsDebounceRef.current) clearTimeout(lyricsDebounceRef.current);
     };
   }, []);
 
@@ -97,11 +114,56 @@ export function useStudioStore() {
 
   const setLyrics = useCallback((lyrics: string) => {
     setState((s) => ({ ...s, lyrics }));
-  }, []);
+
+    // Debounced lyrics analysis
+    if (lyricsDebounceRef.current) {
+      clearTimeout(lyricsDebounceRef.current);
+    }
+
+    lyricsDebounceRef.current = setTimeout(() => {
+      if (lyrics.trim().length > 10 && state.autoSuggestEnabled) {
+        try {
+          const analysis = LyricsAnalyzer.analyze(lyrics);
+          setState((s) => ({
+            ...s,
+            lyricsAnalysis: {
+              mood: analysis.mood,
+              genre: analysis.suggestedGenre,
+              bpm: analysis.suggestedBPM,
+              key: analysis.suggestedKey,
+              scale: analysis.suggestedScale,
+              intensity: analysis.emotionalIntensity,
+              themes: analysis.themes,
+            },
+          }));
+        } catch (e) {
+          console.warn('Lyrics analysis failed:', e);
+        }
+      } else {
+        setState((s) => ({ ...s, lyricsAnalysis: null }));
+      }
+    }, 500);
+  }, [state.autoSuggestEnabled]);
 
   const setParameters = useCallback((params: Partial<MusicParameters>) => {
     setState((s) => ({ ...s, parameters: { ...s.parameters, ...params } }));
   }, []);
+
+  const applyLyricsSuggestion = useCallback(() => {
+    if (!state.lyricsAnalysis) return;
+    const analysis = state.lyricsAnalysis;
+    setState((s) => ({
+      ...s,
+      parameters: {
+        ...s.parameters,
+        mood: analysis.mood as any,
+        genre: analysis.genre as any,
+        bpm: analysis.bpm,
+        key: analysis.key as any,
+        scale: analysis.scale as any,
+      },
+    }));
+  }, [state.lyricsAnalysis]);
 
   const setStructure = useCallback((structure: SectionType[]) => {
     setState((s) => ({ ...s, structure }));
@@ -115,12 +177,31 @@ export function useStudioStore() {
     setState((s) => ({ ...s, selectedSectionId: id }));
   }, []);
 
+  const toggleAutoSuggest = useCallback(() => {
+    setState((s) => ({ ...s, autoSuggestEnabled: !s.autoSuggestEnabled }));
+  }, []);
+
   const generateMusic = useCallback(async () => {
     const provider = providerRef.current;
+
+    // If lyrics analysis exists and auto-suggest is on, apply it
+    let finalParams = state.parameters;
+    if (state.lyricsAnalysis && state.autoSuggestEnabled) {
+      const analysis = state.lyricsAnalysis;
+      finalParams = {
+        ...state.parameters,
+        mood: analysis.mood as any,
+        genre: analysis.genre as any,
+        bpm: analysis.bpm,
+        key: analysis.key as any,
+        scale: analysis.scale as any,
+      };
+    }
+
     const input: GenerationInput = {
       prompt: state.prompt,
       lyrics: state.lyrics,
-      parameters: state.parameters,
+      parameters: finalParams,
       structure: state.structure,
     };
 
@@ -135,7 +216,6 @@ export function useStudioStore() {
       const job = await provider.generateMusic(input);
       setState((s) => ({ ...s, currentJobId: job.jobId }));
 
-      // Poll for status
       pollIntervalRef.current = setInterval(async () => {
         const updatedJob = await provider.getJobStatus(job.jobId);
         setState((s) => ({
@@ -152,7 +232,7 @@ export function useStudioStore() {
             title: state.prompt.slice(0, 50) || 'Untitled Track',
             prompt: state.prompt,
             lyrics: state.lyrics,
-            parameters: state.parameters,
+            parameters: finalParams,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -181,7 +261,7 @@ export function useStudioStore() {
         generationStatus: 'error',
       }));
     }
-  }, [state.prompt, state.lyrics, state.parameters, state.structure]);
+  }, [state.prompt, state.lyrics, state.parameters, state.structure, state.lyricsAnalysis, state.autoSuggestEnabled]);
 
   const cancelGeneration = useCallback(async () => {
     if (state.currentJobId) {
@@ -260,7 +340,6 @@ export function useStudioStore() {
       };
       const sections = [...s.project.sections];
       sections.splice(afterIndex + 1, 0, newSection);
-      // Recalculate times
       const duration = s.project.duration;
       const perSection = duration / sections.length;
       sections.forEach((sec, i) => {
@@ -280,6 +359,8 @@ export function useStudioStore() {
     setStructure,
     setActiveTab,
     setSelectedSection,
+    toggleAutoSuggest,
+    applyLyricsSuggestion,
     generateMusic,
     cancelGeneration,
     toggleTrackMute,

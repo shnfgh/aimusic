@@ -6,10 +6,22 @@ interface CreatePanelProps {
   lyrics: string;
   parameters: MusicParameters;
   isGenerating: boolean;
+  lyricsAnalysis: {
+    mood: string;
+    genre: string;
+    bpm: number;
+    key: string;
+    scale: string;
+    intensity: number;
+    themes: string[];
+  } | null;
+  autoSuggestEnabled: boolean;
   onPromptChange: (v: string) => void;
   onLyricsChange: (v: string) => void;
   onParametersChange: (v: Partial<MusicParameters>) => void;
   onGenerate: () => void;
+  onApplySuggestion: () => void;
+  onToggleAutoSuggest: () => void;
 }
 
 const GENRES: Genre[] = ['pop', 'rock', 'electronic', 'hiphop', 'jazz', 'classical', 'indian', 'latin', 'rnb', 'folk', 'cinematic', 'ambient'];
@@ -31,7 +43,9 @@ const LANGUAGES: { value: Language; label: string }[] = [
 
 export const CreatePanel: React.FC<CreatePanelProps> = ({
   prompt, lyrics, parameters, isGenerating,
+  lyricsAnalysis, autoSuggestEnabled,
   onPromptChange, onLyricsChange, onParametersChange, onGenerate,
+  onApplySuggestion, onToggleAutoSuggest,
 }) => {
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6 animate-slide-up">
@@ -60,15 +74,87 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
 
       {/* Lyrics */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-[var(--text-secondary)]">
-          📝 Lyrics
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-[var(--text-secondary)]">
+            📝 Lyrics
+          </label>
+          <button
+            onClick={onToggleAutoSuggest}
+            className={`text-[10px] px-2 py-1 rounded-full transition-all ${
+              autoSuggestEnabled
+                ? 'bg-purple-900/40 text-purple-300 border border-purple-700/50'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border border-[var(--border-color)]'
+            }`}
+          >
+            {autoSuggestEnabled ? '✨ Auto-Suggest ON' : 'Auto-Suggest OFF'}
+          </button>
+        </div>
         <textarea
           value={lyrics}
           onChange={(e) => onLyricsChange(e.target.value)}
           placeholder="[Verse 1]&#10;Write your lyrics here...&#10;&#10;[Chorus]&#10;The chorus goes here..."
           className="w-full h-36 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl p-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all outline-none font-mono"
         />
+
+        {/* Lyrics Analysis */}
+        {lyricsAnalysis && (
+          <div className="mt-3 bg-[var(--bg-elevated)] border border-[var(--accent-primary)]/30 rounded-xl p-4 animate-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-semibold text-purple-300 flex items-center gap-1">
+                ✨ AI Lyrics Analysis
+              </h4>
+              <button
+                onClick={onApplySuggestion}
+                className="text-[10px] px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 transition-all"
+              >
+                Apply to Parameters
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px]">
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                <span className="text-[var(--text-muted)]">Mood</span>
+                <p className="text-[var(--text-primary)] font-medium capitalize">{lyricsAnalysis.mood}</p>
+              </div>
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                <span className="text-[var(--text-muted)]">Genre</span>
+                <p className="text-[var(--text-primary)] font-medium capitalize">{lyricsAnalysis.genre}</p>
+              </div>
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                <span className="text-[var(--text-muted)]">BPM</span>
+                <p className="text-[var(--text-primary)] font-medium">{lyricsAnalysis.bpm}</p>
+              </div>
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                <span className="text-[var(--text-muted)]">Key</span>
+                <p className="text-[var(--text-primary)] font-medium">{lyricsAnalysis.key} {lyricsAnalysis.scale}</p>
+              </div>
+              <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                <span className="text-[var(--text-muted)]">Intensity</span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex-1 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                      style={{ width: `${lyricsAnalysis.intensity * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[var(--text-primary)] text-[10px]">{Math.round(lyricsAnalysis.intensity * 100)}%</span>
+                </div>
+              </div>
+              {lyricsAnalysis.themes.length > 0 && (
+                <div className="bg-[var(--bg-tertiary)] rounded-lg p-2">
+                  <span className="text-[var(--text-muted)]">Themes</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {lyricsAnalysis.themes.slice(0, 3).map((theme) => (
+                      <span key={theme} className="px-1.5 py-0.5 bg-purple-900/30 text-purple-300 rounded text-[9px] capitalize">
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Parameters Grid */}

@@ -16,6 +16,8 @@ const App: React.FC = () => {
     setParameters,
     setActiveTab,
     setSelectedSection,
+    toggleAutoSuggest,
+    applyLyricsSuggestion,
     generateMusic,
     cancelGeneration,
     toggleTrackMute,
@@ -63,10 +65,14 @@ const App: React.FC = () => {
                   lyrics={state.lyrics}
                   parameters={state.parameters}
                   isGenerating={state.isGenerating}
+                  lyricsAnalysis={state.lyricsAnalysis}
+                  autoSuggestEnabled={state.autoSuggestEnabled}
                   onPromptChange={setPrompt}
                   onLyricsChange={setLyrics}
                   onParametersChange={setParameters}
                   onGenerate={generateMusic}
+                  onApplySuggestion={applyLyricsSuggestion}
+                  onToggleAutoSuggest={toggleAutoSuggest}
                 />
               )}
 
