@@ -18,6 +18,7 @@ type StateListener = (state: AudioEngineState) => void;
 export class AudioEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private audioElement: HTMLAudioElement | null = null;
   private trackNodes: Map<string, { source: AudioBufferSourceNode; gain: GainNode; pan: StereoPannerNode }> = new Map();
   private state: AudioEngineState = {
     isPlaying: false,
@@ -65,10 +66,41 @@ export class AudioEngine {
     this.notify();
   }
 
+  /**
+   * Load an audio URL for playback
+   */
+  loadAudioUrl(url: string): void {
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.src = '';
+    }
+
+    this.audioElement = new Audio(url);
+    this.audioElement.crossOrigin = 'anonymous';
+
+    this.audioElement.addEventListener('loadedmetadata', () => {
+      this.state.duration = this.audioElement!.duration;
+      this.notify();
+    });
+
+    this.audioElement.addEventListener('ended', () => {
+      this.state.isPlaying = false;
+      this.state.currentTime = 0;
+      this.stopAnimation();
+      this.notify();
+    });
+  }
+
   async play(): Promise<void> {
     if (!this.context) return;
     if (this.context.state === 'suspended') {
       await this.context.resume();
+    }
+
+    // If we have a real audio element, use it
+    if (this.audioElement && this.audioElement.src) {
+      this.audioElement.currentTime = this.state.currentTime;
+      await this.audioElement.play();
     }
 
     this.state.isPlaying = true;
@@ -80,6 +112,12 @@ export class AudioEngine {
 
   pause(): void {
     if (!this.context) return;
+
+    if (this.audioElement && !this.audioElement.paused) {
+      this.audioElement.pause();
+      this.state.currentTime = this.audioElement.currentTime;
+    }
+
     this.state.isPlaying = false;
     this.stopAnimation();
     this.notify();
@@ -87,6 +125,11 @@ export class AudioEngine {
 
   seek(time: number): void {
     this.state.currentTime = Math.max(0, Math.min(time, this.state.duration));
+
+    if (this.audioElement && this.audioElement.src) {
+      this.audioElement.currentTime = this.state.currentTime;
+    }
+
     if (this.state.isPlaying) {
       this.startTimestamp = this.context!.currentTime;
       this.startOffset = this.state.currentTime;
@@ -97,6 +140,9 @@ export class AudioEngine {
   setVolume(volume: number): void {
     if (this.masterGain) {
       this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
+    }
+    if (this.audioElement) {
+      this.audioElement.volume = Math.max(0, Math.min(1, volume));
     }
   }
 
@@ -118,6 +164,9 @@ export class AudioEngine {
     this.state.isLooping = true;
     this.state.loopStart = loopStart;
     this.state.loopEnd = loopEnd;
+    if (this.audioElement) {
+      this.audioElement.loop = true;
+    }
     this.notify();
   }
 
@@ -125,23 +174,35 @@ export class AudioEngine {
     this.state.isLooping = false;
     this.state.loopStart = 0;
     this.state.loopEnd = 0;
+    if (this.audioElement) {
+      this.audioElement.loop = false;
+    }
     this.notify();
   }
 
   private startAnimation(): void {
     const tick = () => {
-      if (!this.context || !this.state.isPlaying) return;
+      if (!this.state.isPlaying) return;
 
-      const elapsed = this.context.currentTime - this.startTimestamp;
-      this.state.currentTime = this.startOffset + elapsed;
+      // Use audio element time if available
+      if (this.audioElement && this.audioElement.src && !this.audioElement.paused) {
+        this.state.currentTime = this.audioElement.currentTime;
+      } else if (this.context) {
+        const elapsed = this.context.currentTime - this.startTimestamp;
+        this.state.currentTime = this.startOffset + elapsed;
+      }
 
       if (this.state.isLooping && this.state.currentTime >= this.state.loopEnd) {
         this.state.currentTime = this.state.loopStart;
-        this.startTimestamp = this.context.currentTime;
-        this.startOffset = this.state.loopStart;
-      } else if (this.state.currentTime >= this.state.duration) {
+        if (this.audioElement) this.audioElement.currentTime = this.state.loopStart;
+        if (this.context) {
+          this.startTimestamp = this.context.currentTime;
+          this.startOffset = this.state.loopStart;
+        }
+      } else if (!this.state.isLooping && this.state.currentTime >= this.state.duration) {
         this.state.isPlaying = false;
         this.state.currentTime = 0;
+        if (this.audioElement) this.audioElement.currentTime = 0;
       }
 
       this.notify();
@@ -159,6 +220,10 @@ export class AudioEngine {
 
   destroy(): void {
     this.stopAnimation();
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.src = '';
+    }
     this.trackNodes.forEach((node) => {
       try { node.source.stop(); } catch {}
     });

@@ -19,8 +19,15 @@
   - Themes (مضامین شناسایی شده)
 - **Auto-Suggest**: قابلیت فعال/غیرفعال کردن پیشنهاد خودکار
 
-### 🎼 تولید موسیقی
-- تولید کامل موسیقی با vocals و instruments
+### 🎼 تولید موسیقی واقعی
+- **تولید صدای واقعی با Web Audio API**: سیستم از synthesizer procedural برای تولید موسیقی واقعی استفاده می‌کند
+- **ساخت هوشمند بر اساس پارامترها**:
+  - Drums: الگوهای ریتمیک بر اساس ژانر (Pop, Rock, Electronic, HipHop, Jazz, Indian, Cinematic)
+  - Bass: خطوط بیس بر اساس گام و آکورد
+  - Chords: پدها و آکوردها بر اساس progression و mood
+  - Melody: ملودی‌های بر اساس scale و mood
+  - Pad: اتمسفر برای ژانرهای ambient و cinematic
+- **Music Theory Engine**: استفاده از تئوری موسیقی برای تولید نت‌های هماهنگ
 - پشتیبانی از ساختارهای مختلف (Intro, Verse, Chorus, Bridge, Outro)
 - قابلیت Extend, Remix, Replace Section
 
@@ -159,6 +166,75 @@ npm run dev
 ```bash
 npm run build
 ```
+
+---
+
+## 🎵 سیستم تولید صدای واقعی (Synth Provider)
+
+### نحوه کار
+سیستم از Web Audio API و `OfflineAudioContext` برای تولید موسیقی واقعی به صورت procedural استفاده می‌کند:
+
+1. **MusicTheory Engine** (`src/audio/MusicTheory.ts`):
+   - محاسبه فرکانس نت‌ها بر اساس MIDI
+   - تولید scale notes بر اساس key و scale
+   - تولید chord progressions بر اساس mood
+   - تولید الگوهای درامز بر اساس ژانر
+   - تولید الگوهای ملودی بر اساس mood
+
+2. **MusicSynthesizer** (`src/audio/MusicSynthesizer.ts`):
+   - استفاده از `OfflineAudioContext` برای render آفلاین
+   - تولید لایه‌های مختلف:
+     - **Drums**: Kick, Snare, HiHat با oscillators و noise
+     - **Bass**: Sawtooth oscillator با lowpass filter
+     - **Chords**: Triangle/Sine oscillators با envelope
+     - **Melody**: Oscillators با timbre بر اساس ژانر
+     - **Pad**: Detuned oscillators با LFO modulation
+   - اعمال reverb با ConvolverNode
+   - خروجی به فرمت WAV
+
+3. **SynthMusicProvider** (`src/ai/SynthMusicProvider.ts`):
+   - پیاده‌سازی `MusicGenerationProvider`
+   - فراخوانی `MusicSynthesizer` برای تولید صدا
+   - تبدیل AudioBuffer به WAV Blob
+   - ایجاد Object URL برای پخش
+
+### مثال تولید
+```typescript
+import { MusicSynthesizer } from './audio/MusicSynthesizer';
+
+const synth = new MusicSynthesizer({
+  key: 'C',
+  scale: 'minor',
+  bpm: 120,
+  mood: 'sad',
+  genre: 'pop',
+  duration: 30, // 30 seconds
+});
+
+const audioBuffer = await synth.render();
+const wavBlob = MusicSynthesizer.bufferToWav(audioBuffer);
+const audioUrl = URL.createObjectURL(wavBlob);
+// audioUrl can be played with HTML5 Audio
+```
+
+### الگوهای ژانر
+هر ژانر الگوی خاص خود را دارد:
+- **Pop**: Kick on 1 & 3, Snare on 2 & 4, HiHat on every 8th
+- **Rock**: More kick hits, strong snare, steady hi-hat
+- **Electronic**: Four-on-the-floor kick, constant hi-hat
+- **HipHop**: Syncopated kick, snare on 2 & 4, sparse hi-hat
+- **Jazz**: Walking bass pattern, swing feel, brushed snare
+- **Indian**: Complex rhythmic patterns, tabla-like percussion
+- **Cinematic**: Sparse, dramatic hits, orchestral feel
+- **Ambient**: Minimal drums, atmospheric pads
+
+### گسترش سیستم
+برای بهبود کیفیت صدا:
+1. استفاده از نمونه‌های صوتی واقعی (samples)
+2. افزودن افکت‌های بیشتر (delay, chorus, distortion)
+3. استفاده از FM/AM synthesis
+4. پیاده‌سازی virtual analog synthesizers
+5. اتصال به مدل‌های AI واقعی (MusicGen, Riffusion, etc.)
 
 ---
 

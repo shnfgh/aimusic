@@ -15,7 +15,7 @@ import {
   Track,
 } from '../models/types';
 import { MusicGenerationProvider } from '../ai/MusicGenerationProvider';
-import { MockMusicProvider } from '../ai/MockMusicProvider';
+import { SynthMusicProvider } from '../ai/SynthMusicProvider';
 import { getAudioEngine, AudioEngineState } from '../audio/AudioEngine';
 import { LyricsAnalyzer } from '../services/LyricsAnalyzer';
 
@@ -87,7 +87,7 @@ export function useStudioStore() {
     autoSuggestEnabled: true,
   });
 
-  const providerRef = useRef<MusicGenerationProvider>(new MockMusicProvider());
+  const providerRef = useRef<MusicGenerationProvider>(new SynthMusicProvider());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lyricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -244,7 +244,14 @@ export function useStudioStore() {
             generationProgress: 100,
             activeTab: 'edit',
           }));
-          getAudioEngine().setDuration(project.duration);
+
+          // Load audio into engine
+          const engine = getAudioEngine();
+          engine.setDuration(project.duration);
+          const firstTrackWithAudio = project.tracks.find(t => t.audioUrl);
+          if (firstTrackWithAudio?.audioUrl) {
+            engine.loadAudioUrl(firstTrackWithAudio.audioUrl);
+          }
         } else if (updatedJob.status === 'failed') {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           setState((s) => ({
