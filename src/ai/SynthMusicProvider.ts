@@ -160,11 +160,12 @@ export class SynthMusicProvider extends MusicGenerationProvider {
     ];
 
     let elapsed = 0;
+    let audioGenerationPromise: Promise<void> | null = null;
 
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
 
-      setTimeout(() => {
+      setTimeout(async () => {
         const job = this.jobs.get(jobId);
         if (!job) return;
 
@@ -174,10 +175,19 @@ export class SynthMusicProvider extends MusicGenerationProvider {
 
         // Generate actual audio at the instrumental step
         if (step.status === 'generating-instrumental') {
-          this.generateActualAudio(jobId, input).catch(console.error);
+          audioGenerationPromise = this.generateActualAudio(jobId, input);
         }
 
         if (i === steps.length - 1) {
+          // Wait for audio generation to complete before marking job as complete
+          if (audioGenerationPromise) {
+            try {
+              await audioGenerationPromise;
+            } catch (error) {
+              console.error('[SynthProvider] Audio generation error:', error);
+            }
+          }
+          
           job.status = 'complete';
           job.currentStep = 'complete';
           job.result = this.createProjectFromAudio(jobId, input);
@@ -190,6 +200,8 @@ export class SynthMusicProvider extends MusicGenerationProvider {
 
   private async generateActualAudio(jobId: string, input: GenerationInput): Promise<void> {
     try {
+      console.log('[SynthProvider] Starting audio generation...');
+      
       const synthesizer = new MusicSynthesizer({
         key: input.parameters.key,
         scale: input.parameters.scale,
@@ -199,13 +211,21 @@ export class SynthMusicProvider extends MusicGenerationProvider {
         duration: Math.min(input.parameters.duration, 60), // Limit to 60s for demo
       });
 
+      console.log('[SynthProvider] Rendering audio...');
       const audioBuffer = await synthesizer.render();
+      console.log('[SynthProvider] Audio rendered, converting to WAV...');
+      
       const wavBlob = MusicSynthesizer.bufferToWav(audioBuffer);
+      console.log('[SynthProvider] WAV blob created, size:', wavBlob.size);
+      
       const audioUrl = URL.createObjectURL(wavBlob);
+      console.log('[SynthProvider] Audio URL created:', audioUrl);
 
       this.audioUrls.set(jobId, audioUrl);
+      console.log('[SynthProvider] Audio generation complete');
     } catch (error) {
-      console.error('Audio generation failed:', error);
+      console.error('[SynthProvider] Audio generation failed:', error);
+      throw error;
     }
   }
 

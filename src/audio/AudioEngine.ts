@@ -70,28 +70,51 @@ export class AudioEngine {
    * Load an audio URL for playback
    */
   loadAudioUrl(url: string): void {
+    console.log('[AudioEngine] Loading audio URL:', url);
+    
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.src = '';
     }
 
-    this.audioElement = new Audio(url);
-    this.audioElement.crossOrigin = 'anonymous';
-
+    this.audioElement = new Audio();
+    this.audioElement.preload = 'auto';
+    
+    // Set up event listeners before setting src
     this.audioElement.addEventListener('loadedmetadata', () => {
-      this.state.duration = this.audioElement!.duration;
-      this.notify();
+      console.log('[AudioEngine] Audio metadata loaded, duration:', this.audioElement!.duration);
+      if (this.audioElement && isFinite(this.audioElement.duration)) {
+        this.state.duration = this.audioElement.duration;
+        this.notify();
+      }
+    });
+
+    this.audioElement.addEventListener('canplay', () => {
+      console.log('[AudioEngine] Audio can play');
+    });
+
+    this.audioElement.addEventListener('error', (e) => {
+      console.error('[AudioEngine] Audio load error:', e);
     });
 
     this.audioElement.addEventListener('ended', () => {
+      console.log('[AudioEngine] Audio ended');
       this.state.isPlaying = false;
       this.state.currentTime = 0;
       this.stopAnimation();
       this.notify();
     });
+
+    // Set src last
+    this.audioElement.src = url;
+    
+    // Force load
+    this.audioElement.load();
   }
 
   async play(): Promise<void> {
+    console.log('[AudioEngine] Play called, has audio:', !!this.audioElement?.src);
+    
     if (!this.context) return;
     if (this.context.state === 'suspended') {
       await this.context.resume();
@@ -99,8 +122,13 @@ export class AudioEngine {
 
     // If we have a real audio element, use it
     if (this.audioElement && this.audioElement.src) {
-      this.audioElement.currentTime = this.state.currentTime;
-      await this.audioElement.play();
+      try {
+        this.audioElement.currentTime = this.state.currentTime;
+        await this.audioElement.play();
+        console.log('[AudioEngine] Audio playback started');
+      } catch (error) {
+        console.error('[AudioEngine] Play error:', error);
+      }
     }
 
     this.state.isPlaying = true;

@@ -5,6 +5,7 @@ import { Timeline } from './components/timeline/Timeline';
 import { PlayerBar } from './components/player/PlayerBar';
 import { InspectorPanel } from './components/inspector/InspectorPanel';
 import { GenerationProgress } from './components/progress/GenerationProgress';
+import { AudioTest } from './components/debug/AudioTest';
 import { useStudioStore } from './stores/useStudioStore';
 import { getAudioEngine } from './audio/AudioEngine';
 
@@ -284,6 +285,9 @@ const App: React.FC = () => {
           onCancel={cancelGeneration}
         />
       )}
+
+      {/* Audio Test Panel (Debug) */}
+      {import.meta.env.DEV && <AudioTest />}
     </div>
   );
 };

@@ -33,34 +33,75 @@ export class MusicSynthesizer {
     const { duration, sampleRate } = this.config;
     const numSamples = Math.floor(duration * (sampleRate || 44100));
 
-    const offlineCtx = new OfflineAudioContext(
-      2, // stereo
-      numSamples,
-      sampleRate || 44100
-    );
+    console.log('[MusicSynth] Starting render, duration:', duration, 'samples:', numSamples);
 
-    // Create master bus
-    const masterGain = offlineCtx.createGain();
-    masterGain.gain.value = 0.7;
-    masterGain.connect(offlineCtx.destination);
+    try {
+      const offlineCtx = new OfflineAudioContext(
+        2, // stereo
+        numSamples,
+        sampleRate || 44100
+      );
 
-    // Create reverb (simple convolution)
-    const reverb = this.createReverb(offlineCtx);
-    const reverbGain = offlineCtx.createGain();
-    reverbGain.gain.value = 0.2;
-    reverb.connect(reverbGain);
-    reverbGain.connect(masterGain);
+      // Create master bus
+      const masterGain = offlineCtx.createGain();
+      masterGain.gain.value = 0.7;
+      masterGain.connect(offlineCtx.destination);
 
-    // Generate layers
-    await this.renderDrums(offlineCtx, masterGain);
-    await this.renderBass(offlineCtx, masterGain);
-    await this.renderChords(offlineCtx, masterGain, reverb);
-    await this.renderMelody(offlineCtx, masterGain, reverb);
-    await this.renderPad(offlineCtx, masterGain, reverb);
+      // Create reverb (simple convolution)
+      const reverb = this.createReverb(offlineCtx);
+      const reverbGain = offlineCtx.createGain();
+      reverbGain.gain.value = 0.2;
+      reverb.connect(reverbGain);
+      reverbGain.connect(masterGain);
 
-    // Render
-    const buffer = await offlineCtx.startRendering();
-    return buffer;
+      // Generate layers
+      console.log('[MusicSynth] Rendering drums...');
+      await this.renderDrums(offlineCtx, masterGain);
+      console.log('[MusicSynth] Rendering bass...');
+      await this.renderBass(offlineCtx, masterGain);
+      console.log('[MusicSynth] Rendering chords...');
+      await this.renderChords(offlineCtx, masterGain, reverb);
+      console.log('[MusicSynth] Rendering melody...');
+      await this.renderMelody(offlineCtx, masterGain, reverb);
+      console.log('[MusicSynth] Rendering pad...');
+      await this.renderPad(offlineCtx, masterGain, reverb);
+
+      // Render
+      console.log('[MusicSynth] Starting offline render...');
+      const buffer = await offlineCtx.startRendering();
+      console.log('[MusicSynth] Render complete, buffer duration:', buffer.duration);
+      return buffer;
+    } catch (error) {
+      console.error('[MusicSynth] Render failed:', error);
+      // Fallback: create a simple sine wave buffer
+      return await this.createFallbackBuffer();
+    }
+  }
+
+  /**
+   * Create a fallback audio buffer if rendering fails
+   */
+  private async createFallbackBuffer(): Promise<AudioBuffer> {
+    console.log('[MusicSynth] Creating fallback buffer...');
+    const { duration, sampleRate } = this.config;
+    const ctx = new OfflineAudioContext(2, Math.floor(duration * (sampleRate || 44100)), sampleRate || 44100);
+    
+    // Create a simple chord progression
+    const rootFreq = MusicTheory.midiToFreq(MusicTheory.getRootMidi(this.config.key, 3));
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = rootFreq;
+    gain.gain.value = 0.3;
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start(0);
+    osc.stop(duration);
+    
+    return await ctx.startRendering();
   }
 
   /**
