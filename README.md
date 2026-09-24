@@ -174,7 +174,10 @@ npm run build
 2. به Settings > Pages بروید
 3. Source را روی "GitHub Actions" تنظیم کنید
 4. Workflow به صورت خودکار روی هر push به `main` اجرا می‌شود
-5. سایت شما در `https://username.github.io/farqar-ai-music-studio/` در دسترس خواهد بود
+5. سایت شما در `https://shnfgh.github.io/aimusic/` در دسترس خواهد بود
+
+**مخزن:** https://github.com/shnfgh/aimusic  
+**سایت:** https://shnfgh.github.io/aimusic/
 
 ### روش دستی
 ```bash

@@ -82,7 +82,7 @@ git push
 ### در Pages Tab:
 ```
 Your site is live at:
-https://YOUR_USERNAME.github.io/farqar-ai-music-studio/
+https://shnfgh.github.io/aimusic/
 ```
 
 ---
