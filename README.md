@@ -167,6 +167,28 @@ npm run dev
 npm run build
 ```
 
+## 🌐 Deploy به GitHub Pages
+
+### روش خودکار (GitHub Actions)
+1. Repository را به GitHub push کنید
+2. به Settings > Pages بروید
+3. Source را روی "GitHub Actions" تنظیم کنید
+4. Workflow به صورت خودکار روی هر push به `main` اجرا می‌شود
+5. سایت شما در `https://username.github.io/farqar-ai-music-studio/` در دسترس خواهد بود
+
+### روش دستی
+```bash
+# Build با config مخصوص GitHub Pages
+npm run build -- --config vite.config.pages.js
+
+# خروجی در پوشه dist قرار می‌گیرد
+# آن را به branch gh-pages deploy کنید
+```
+
+### فایل‌های Workflow
+- `.github/workflows/deploy.yml`: GitHub Actions workflow برای deploy خودکار
+- `vite.config.pages.js`: Vite config مخصوص GitHub Pages با base path صحیح
+
 ---
 
 ## 🎵 سیستم تولید صدای واقعی (Synth Provider)
