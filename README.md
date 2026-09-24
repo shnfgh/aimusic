@@ -174,12 +174,15 @@ npm run build
 2. به Settings > Pages بروید
 3. Source را روی "GitHub Actions" تنظیم کنید
 4. Workflow به صورت خودکار روی هر push به `main` اجرا می‌شود
-5. سایت شما در `https://username.github.io/farqar-ai-music-studio/` در دسترس خواهد بود
+5. سایت شما در `https://shnfgh.github.io/aimusic/` در دسترس خواهد بود
+
+**مخزن:** https://github.com/shnfgh/aimusic  
+**سایت:** https://shnfgh.github.io/aimusic/
 
 ### روش دستی
 ```bash
-# Build با config مخصوص GitHub Pages
-npm run build -- --config vite.config.pages.js
+# Build پروژه
+npm run build
 
 # خروجی در پوشه dist قرار می‌گیرد
 # آن را به branch gh-pages deploy کنید
@@ -187,7 +190,7 @@ npm run build -- --config vite.config.pages.js
 
 ### فایل‌های Workflow
 - `.github/workflows/deploy.yml`: GitHub Actions workflow برای deploy خودکار
-- `vite.config.pages.js`: Vite config مخصوص GitHub Pages با base path صحیح
+- `vite.config.js`: Vite config با base path نسبی برای GitHub Pages
 
 ---
 

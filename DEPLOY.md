@@ -17,7 +17,7 @@ git add .
 git commit -m "Initial commit"
 
 # Remote را اضافه کنید
-git remote add origin https://github.com/YOUR_USERNAME/farqar-ai-music-studio.git
+git remote add origin https://github.com/shnfgh/aimusic.git
 git branch -M main
 git push -u origin main
 ```
@@ -49,7 +49,7 @@ Workflow به صورت خودکار اجرا می‌شود و:
 2. آخرین workflow run را مشاهده کنید
 3. پس از موفقیت، سایت شما در آدرس زیر در دسترس خواهد بود:
    ```
-   https://YOUR_USERNAME.github.io/farqar-ai-music-studio/
+   https://shnfgh.github.io/aimusic/
    ```
 
 ## 🔧 روش 2: Deploy دستی
